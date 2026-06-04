@@ -22,31 +22,28 @@ kind: Pod
 spec:
   containers:
 
-  - name: golang
-    image: golang:1.25
-    command:
-    - cat
-    tty: true
+  - name: jnlp
+    image: jenkins/inbound-agent:latest
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:v1.23.2
+    command: ["cat"]
     tty: true
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker
-        
+
   - name: kubectl
     image: bitnami/kubectl:latest
-    command:
-    - cat
+    command: ["cat"]
     tty: true
-
-  restartPolicy: Never
 
   volumes:
   - name: docker-config
     secret:
       secretName: harbor-regcred
+
+  restartPolicy: Never
 """
         }
       }
@@ -64,10 +61,10 @@ spec:
             container('kaniko') {
               sh """
               /kaniko/executor \
-              --context=${WORKSPACE} \
-              --dockerfile=${WORKSPACE}/Dockerfile \
-              --destination=harbor.carpenter.cx/library/go-hello:${BUILD_NUMBER} \
-              --cleanup
+                --context=${WORKSPACE} \
+                --dockerfile=${WORKSPACE}/Dockerfile \
+                --destination=${REGISTRY}/${IMAGE}:${TAG} \
+                --cleanup
               """
             }
           }
@@ -78,8 +75,10 @@ spec:
             container('kubectl') {
               sh """
               kubectl apply -f k8s/deployment.yaml
+
               kubectl set image deployment/go-hello \
-                go-hello=${REGISTRY}/${IMAGE}:${TAG} -n default
+                go-hello=${REGISTRY}/${IMAGE}:${TAG} \
+                -n default
               """
             }
           }
