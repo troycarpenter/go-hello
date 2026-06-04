@@ -30,8 +30,7 @@ spec:
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:v1.23.2
-    command: ["sleep"]
-    args: ["infinity"]
+    command: ["cat"]
     tty: true
     volumeMounts:
     - name: docker-config
