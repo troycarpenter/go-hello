@@ -61,7 +61,7 @@ spec:
               --dockerfile=${WORKSPACE}/Dockerfile \
               --destination=harbor.carpenter.cx/library/go-hello:${BUILD_NUMBER} \
               --cleanup
-              '''
+              """
             }
           }
         }
