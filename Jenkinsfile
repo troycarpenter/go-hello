@@ -34,8 +34,8 @@ spec:
     args: ["infinity"]
     tty: true
     volumeMounts:
-      - name: docker-config
-        mountPath: /kaniko/.docker
+    - name: docker-config
+      mountPath: /kaniko/.docker
         
   - name: kubectl
     image: bitnami/kubectl:latest
@@ -45,10 +45,10 @@ spec:
 
   restartPolicy: Never
 
-    volumes:
-    - name: docker-config
-      secret:
-        secretName: harbor-regcred
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: harbor-regcred
 """
         }
       }
