@@ -9,88 +9,81 @@ pipeline {
 
   stages {
 
-    stage('Build and Deploy') {
+    stage('Checkout') {
+      agent any
+      steps {
+        checkout scm
+      }
+    }
 
+    stage('Build Image (Kaniko)') {
       agent {
         kubernetes {
-          label "go-kaniko-${BUILD_NUMBER}"
-          defaultContainer 'golang'
+          label "kaniko-build-${BUILD_NUMBER}"
+          defaultContainer 'kaniko'
 
           yaml """
 apiVersion: v1
 kind: Pod
 spec:
+  restartPolicy: Never
   containers:
-
-  - name: golang
-    image: golang:1.25
-    command: ["sleep"]
-    args: ["infinity"]
-
   - name: kaniko
     image: gcr.io/kaniko-project/executor:v1.23.2
     command: ["/kaniko/executor"]
-    args: ["--help"]   # harmless placeholder so container doesn't exit instantly
-    tty: true
+    args: ["--help"]
     volumeMounts:
     - name: docker-config
       mountPath: /kaniko/.docker
+  volumes:
+  - name: docker-config
+    secret:
+      secretName: harbor-regcred
+"""
+        }
+      }
+      steps {
+        container('kaniko') {
+          sh """
+          /kaniko/executor \
+            --context=${WORKSPACE} \
+            --dockerfile=${WORKSPACE}/Dockerfile \
+            --destination=${REGISTRY}/${IMAGE}:${TAG} \
+            --cleanup
+          """
+        }
+      }
+    }
 
+    stage('Deploy (kubectl)') {
+      agent {
+        kubernetes {
+          label "kubectl-deploy-${BUILD_NUMBER}"
+          defaultContainer 'kubectl'
+
+          yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  restartPolicy: Never
+  containers:
   - name: kubectl
     image: bitnami/kubectl:latest
-    command: ["sleep"]
-    args: ["infinity"]
-
-  volumes:
-    - name: docker-config
-      secret:
-        secretName: harbor-regcred
-
-  restartPolicy: Never
+    command: ["cat"]
+    tty: true
 """
         }
       }
 
-      stages {
+      steps {
+        container('kubectl') {
+          sh """
+          kubectl apply -f k8s/deployment.yaml
 
-        stage('Checkout') {
-          steps {
-            checkout scm
-          }
-        }
-
-        stage('Build') {
-          steps {
-            container('golang') {
-              sh 'go version'
-            }
-          }
-        }
-
-        stage('Build Image') {
-          steps {
-            container('kaniko') {
-              sh """
-              /kaniko/executor \
-                --context=${WORKSPACE} \
-                --dockerfile=${WORKSPACE}/Dockerfile \
-                --destination=${REGISTRY}/${IMAGE}:${TAG} \
-                --cleanup
-              """
-            }
-          }
-        }
-
-        stage('Deploy') {
-          steps {
-            container('kubectl') {
-              sh """
-              kubectl apply -f k8s/deployment.yaml
-              kubectl set image deployment/go-hello \
-                go-hello=${REGISTRY}/${IMAGE}:${TAG}
-              """
-            }
-          }
+          kubectl set image deployment/go-hello \
+            go-hello=${REGISTRY}/${IMAGE}:${TAG} \
+            -n default
+          """
         }
       }
     }
