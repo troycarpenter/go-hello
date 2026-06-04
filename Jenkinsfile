@@ -1,98 +1,44 @@
 pipeline {
-  agent none
+  agent any
 
   environment {
     REGISTRY = "harbor.carpenter.cx"
-    IMAGE = "library/go-hello"
-    TAG = "${BUILD_NUMBER}"
+    IMAGE    = "library/go-hello"
+    TAG      = "${BUILD_NUMBER}"
+    FULL_IMAGE = "${REGISTRY}/${IMAGE}:${TAG}"
   }
 
   stages {
 
     stage('Checkout') {
-      agent any
       steps {
         checkout scm
       }
     }
 
-    stage('Build Image (Kaniko)') {
-      agent {
-        kubernetes {
-          label "kaniko-${BUILD_NUMBER}"
-          defaultContainer 'kaniko'
-
-          yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  restartPolicy: Never
-  containers:
-
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:v1.23.2
-    command:
-    - /kaniko/executor
-    args:
-    - --context=/workspace
-    - --dockerfile=/workspace/Dockerfile
-    - --destination=harbor.carpenter.cx/library/go-hello:${BUILD_NUMBER}
-    - --cleanup
-    volumeMounts:
-    - name: docker-config
-      mountPath: /kaniko/.docker
-
-  volumes:
-  - name: docker-config
-    secret:
-      secretName: harbor-regcred
-"""
-        }
-      }
-
+    stage('Build Image (Kaniko Job)') {
       steps {
-        container('kaniko') {
-          sh """
-            /kaniko/executor \
-              --context=$WORKSPACE \
-              --dockerfile=$WORKSPACE/Dockerfile \
-              --destination=${REGISTRY}/${IMAGE}:${TAG} \
-              --cleanup
-          """
-        }
+        sh """
+        sed \
+          -e 's|__IMAGE__|${FULL_IMAGE}|g' \
+          -e 's|__BUILD_NUMBER__|${BUILD_NUMBER}|g' \
+          k8s/kaniko-job.yaml | kubectl apply -f -
+
+        kubectl wait --for=condition=complete job/go-hello-build --timeout=600s
+        kubectl logs job/go-hello-build
+        """
       }
     }
 
     stage('Deploy') {
-      agent {
-        kubernetes {
-          label "kubectl-${BUILD_NUMBER}"
-          defaultContainer 'kubectl'
-
-          yaml """
-apiVersion: v1
-kind: Pod
-spec:
-  restartPolicy: Never
-  containers:
-
-  - name: kubectl
-    image: bitnami/kubectl:1.30
-    command: ["sh", "-c", "cat"]
-"""
-        }
-      }
-
       steps {
-        container('kubectl') {
-          sh """
-            kubectl apply -f k8s/deployment.yaml
+        sh """
+        kubectl apply -f k8s/deployment.yaml
 
-            kubectl set image deployment/go-hello \
-              go-hello=${REGISTRY}/${IMAGE}:${TAG} \
-              -n default
-          """
-        }
+        kubectl set image deployment/go-hello \
+          go-hello=${FULL_IMAGE} \
+          -n default
+        """
       }
     }
   }
