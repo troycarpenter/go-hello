@@ -25,16 +25,35 @@ pipeline {
       }
     }
 
-    stage('Deploy') {
-      steps {
-        sh """
-        kubectl apply -f k8s/deployment.yaml
+stage('Deploy') {
+  agent {
+    kubernetes {
+      label "kubectl-${BUILD_NUMBER}"
+      defaultContainer 'kubectl'
 
-        kubectl set image deployment/go-hello \
-          go-hello=${REGISTRY}/${IMAGE}:${TAG} \
-          -n default
-        """
-      }
+      yaml """
+apiVersion: v1
+kind: Pod
+spec:
+  restartPolicy: Never
+  containers:
+  - name: kubectl
+    image: bitnami/kubectl:1.30
+    command: ["cat"]
+    tty: true
+"""
+    }
+  }
+
+  steps {
+    container('kubectl') {
+      sh """
+      kubectl apply -f k8s/deployment.yaml
+
+      kubectl set image deployment/go-hello \
+        go-hello=${REGISTRY}/${IMAGE}:${TAG} \
+        -n default
+      """
     }
   }
 }
