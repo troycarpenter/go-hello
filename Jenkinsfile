@@ -10,11 +10,11 @@ pipeline {
   stages {
 
     stage('Build and Deploy') {
+
       agent {
         kubernetes {
           label "go-kaniko-${BUILD_NUMBER}"
-
-          defaultContainer 'jnlp'
+          defaultContainer 'golang'
 
           yaml """
 apiVersion: v1
@@ -22,26 +22,28 @@ kind: Pod
 spec:
   containers:
 
-  - name: jnlp
-    image: jenkins/inbound-agent:latest
+  - name: golang
+    image: golang:1.25
+    command: ["sleep"]
+    args: ["infinity"]
 
   - name: kaniko
     image: gcr.io/kaniko-project/executor:v1.23.2
-    command: ["cat"]
-    tty: true
+    command: ["sleep"]
+    args: ["infinity"]
     volumeMounts:
-    - name: docker-config
-      mountPath: /kaniko/.docker
+      - name: docker-config
+        mountPath: /kaniko/.docker
 
   - name: kubectl
     image: bitnami/kubectl:latest
-    command: ["cat"]
-    tty: true
+    command: ["sleep"]
+    args: ["infinity"]
 
   volumes:
-  - name: docker-config
-    secret:
-      secretName: harbor-regcred
+    - name: docker-config
+      secret:
+        secretName: harbor-regcred
 
   restartPolicy: Never
 """
@@ -56,7 +58,15 @@ spec:
           }
         }
 
-        stage('Build with Kaniko') {
+        stage('Build') {
+          steps {
+            container('golang') {
+              sh 'go version'
+            }
+          }
+        }
+
+        stage('Build Image') {
           steps {
             container('kaniko') {
               sh """
@@ -70,15 +80,13 @@ spec:
           }
         }
 
-        stage('Deploy to k3s') {
+        stage('Deploy') {
           steps {
             container('kubectl') {
               sh """
               kubectl apply -f k8s/deployment.yaml
-
               kubectl set image deployment/go-hello \
-                go-hello=${REGISTRY}/${IMAGE}:${TAG} \
-                -n default
+                go-hello=${REGISTRY}/${IMAGE}:${TAG}
               """
             }
           }
