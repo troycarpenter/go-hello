@@ -3,22 +3,32 @@ kind: Job
 metadata:
   name: go-hello-build
 spec:
-  backoffLimit: 0
+  backoffLimit: 1
   template:
     spec:
       restartPolicy: Never
+
       containers:
       - name: kaniko
         image: gcr.io/kaniko-project/executor:v1.23.2
         args:
-          - "--context=git://github.com/troycarpenter/go-test.git"
-          - "--dockerfile=Dockerfile"
-          - "--destination=harbor.carpenter.cx/library/go-hello:${TAG}"
+          - "--dockerfile=/workspace/Dockerfile"
+          - "--context=dir:///workspace"
+          - "--destination=__IMAGE__"
           - "--cleanup"
+          - "--verbosity=info"
+
         volumeMounts:
-        - name: docker-config
-          mountPath: /kaniko/.docker
+          - name: workspace
+            mountPath: /workspace
+          - name: docker-config
+            mountPath: /kaniko/.docker
+
       volumes:
-      - name: docker-config
-        secret:
-          secretName: harbor-regcred
+        - name: workspace
+          hostPath:
+            path: /home/jenkins/agent/workspace/go-test_main   # OR adjust if needed
+
+        - name: docker-config
+          secret:
+            secretName: harbor-regcred
