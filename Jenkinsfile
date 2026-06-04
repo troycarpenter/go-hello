@@ -29,9 +29,12 @@ spec:
     tty: true
 
   - name: kaniko
-    image: gcr.io/kaniko-project/executor:latest
+    image: gcr.io/kaniko-project/executor:v1.23.2
     tty: true
-
+    volumeMounts:
+      - name: docker-config
+        mountPath: /kaniko/.docker
+        
   - name: kubectl
     image: bitnami/kubectl:latest
     command:
@@ -39,6 +42,11 @@ spec:
     tty: true
 
   restartPolicy: Never
+
+    volumes:
+    - name: docker-config
+      secret:
+        secretName: harbor-regcred
 """
         }
       }
