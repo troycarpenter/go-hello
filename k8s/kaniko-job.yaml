@@ -3,31 +3,33 @@ kind: Job
 metadata:
   name: go-hello-build
 spec:
-  backoffLimit: 1
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 600
+
   template:
     spec:
       restartPolicy: Never
 
       containers:
-      - name: kaniko
-        image: gcr.io/kaniko-project/executor:v1.23.2
-        args:
-          - "--dockerfile=/workspace/Dockerfile"
-          - "--context=dir:///workspace"
-          - "--destination=__IMAGE__"
-          - "--cleanup"
-          - "--verbosity=info"
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - "--dockerfile=/workspace/Dockerfile"
+            - "--context=/workspace"
+            - "--destination=__IMAGE__"
+            - "--cleanup"
+            - "--verbosity=info"
 
-        volumeMounts:
-          - name: workspace
-            mountPath: /workspace
-          - name: docker-config
-            mountPath: /kaniko/.docker
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+
+            - name: docker-config
+              mountPath: /kaniko/.docker
 
       volumes:
         - name: workspace
-          hostPath:
-            path: /home/jenkins/agent/workspace/go-test_main   # OR adjust if needed
+          emptyDir: {}
 
         - name: docker-config
           secret:
