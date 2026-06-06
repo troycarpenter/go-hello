@@ -126,9 +126,8 @@ spec:
  
         stage('Deploy to k3s') {
             when {
-                anyOf {
-                    branch 'origin-main'
-                    branch 'origin-master'
+                expression {
+                     env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master'] 
                 }
             }
             steps {
