@@ -50,10 +50,6 @@ spec:
         disableConcurrentBuilds()
     }
  
-    triggers {
-        pollSCM('* * * * *')
-    }
- 
     stages {
  
         stage('Checkout') {
@@ -129,8 +125,8 @@ spec:
         stage('Deploy to k3s') {
             when {
                 anyOf {
-                    branch 'main'
-                    branch 'master'
+                    branch 'origin-main'
+                    branch 'origin-master'
                 }
             }
             steps {
