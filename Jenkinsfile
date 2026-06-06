@@ -62,8 +62,6 @@ spec:
                     ).trim()
                     env.GIT_BRANCH_CLEAN = env.GIT_BRANCH?.replaceAll('/', '-') ?: 'unknown'
                     echo "Building commit: ${env.GIT_COMMIT_SHORT} on branch: ${env.GIT_BRANCH_CLEAN}"
-                    echo "GIT_BRANCH env: ${env.GIT_BRANCH}"
-                    echo "GIT_BRANCH_CLEAN: ${env.GIT_BRANCH_CLEAN}"
                 }
             }
         }
