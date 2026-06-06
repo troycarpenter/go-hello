@@ -3,7 +3,7 @@ FROM golang:1.22 as builder
 WORKDIR /app
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o app main.go
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o app main.go
 
 FROM gcr.io/distroless/base-debian12
 
