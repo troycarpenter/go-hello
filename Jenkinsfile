@@ -124,33 +124,20 @@ spec:
                 expression { env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master'] }
             }
             steps {
-                withCredentials([
-                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
-                ]) {
-                    container('golang') {
-                        sh """
-                        # Install bash, gettext (for envsubst), and curl explicitly
-                        apk add --no-cache bash gettext curl
+                container('golang') {
+                    sh """
+                    # 1. Install standard alpine package dependencies (safely avoids download bugs)
+                    apk add --no-cache gettext kubectl
 
-                        # Execute the logic securely inside a native bash wrapper
-                        bash -c '
-                          echo "Downloading kubectl executable binary..."
-                          curl -fsSL "https://k8s.io" -o ./kubectl
-                          
-                          echo "Setting execution permissions..."
-                          chmod +x ./kubectl
+                    # 2. Generate the definitive deployment manifest template 
+                    envsubst < deployment.yaml > generated_deployment.yaml
 
-                          echo "Generating manifest via variable substitution..."
-                          envsubst < deployment.yaml > generated_deployment.yaml
+                    # 3. Apply the layout natively using the built-in k3s cluster service token
+                    kubectl apply --server=https://default.svc -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
 
-                          echo "Applying configuration manifest to k3s cluster..."
-                          ./kubectl --kubeconfig="\$KUBECONFIG" apply -n "${DEPLOY_NAMESPACE}" -f generated_deployment.yaml
-
-                          echo "Monitoring deployment roll-out progress..."
-                          ./kubectl --kubeconfig="\$KUBECONFIG" rollout status deployment/${DEPLOY_NAME} -n "${DEPLOY_NAMESPACE}" --timeout=120s
-                        '
-                        """
-                    }
+                    # 4. Watch and evaluate the pod orchestration rollout status
+                    kubectl rollout status deployment/${DEPLOY_NAME} --server=https://default.svc -n ${DEPLOY_NAMESPACE} --timeout=120s
+                    """
                 }
             }
         }
