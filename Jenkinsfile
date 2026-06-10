@@ -124,23 +124,22 @@ spec:
                 expression { env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master'] }
             }
             steps {
-                // RESTORED: Passing the verified file credential mapping explicitly
                 withCredentials([
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
                 ]) {
                     container('golang') {
                         sh """
-                        # 1. Install standard alpine package dependencies
+                        # Install dependencies
                         apk add --no-cache gettext kubectl
 
-                        # 2. Generate the deployment manifest template 
+                        # Generate deployment manifest
                         envsubst < deployment.yaml > generated_deployment.yaml
 
-                        # 3. Apply the layout using the kubeconfig credentials and correct API endpoint address
-                        kubectl apply --kubeconfig=\$KUBECONFIG --server=https://default.svc -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
+                        # FIXED: Pointing directly to the hardcoded internal ClusterIP to bypass DNS issues
+                        kubectl apply --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
 
-                        # 4. Watch and evaluate the pod orchestration rollout status
-                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://default.svc -n ${DEPLOY_NAMESPACE} --timeout=120s
+                        # Track rollout status
+                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
                 }
