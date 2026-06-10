@@ -6,7 +6,7 @@ import (
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello from k3s Go CI/CD pipeline - V5.  Trying with Terraform\n")
+	fmt.Fprintf(w, "Hello from k3s Go CI/CD pipeline - V6.")
 }
 
 func main() {
