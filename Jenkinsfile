@@ -129,25 +129,32 @@ spec:
                 ]) {
                     container('golang') {
                         sh """
-                        # FIXED: Install curl along with gettext so the download works
-                        apk add --no-cache gettext curl
+                        # Install bash, gettext (for envsubst), and curl explicitly
+                        apk add --no-cache bash gettext curl
 
-                        # FIXED: Restored the exact path to the linux amd64 binary executable
-                        curl -L "https://k8s.io" -o ./kubectl
-                        
-                        # Make local binary executable
-                        chmod +x ./kubectl
+                        # Execute the logic securely inside a native bash wrapper
+                        bash -c '
+                          echo "Downloading kubectl executable binary..."
+                          curl -fsSL "https://k8s.io" -o ./kubectl
+                          
+                          echo "Setting execution permissions..."
+                          chmod +x ./kubectl
 
-                        # Substitute variables and pipe to our local executable
-                        envsubst < deployment.yaml | ./kubectl --kubeconfig=\$KUBECONFIG apply -n ${DEPLOY_NAMESPACE} -f -
+                          echo "Generating manifest via variable substitution..."
+                          envsubst < deployment.yaml > generated_deployment.yaml
 
-                        # Track rollout status using the local binary
-                        ./kubectl --kubeconfig=\$KUBECONFIG rollout status deployment/${DEPLOY_NAME} -n ${DEPLOY_NAMESPACE} --timeout=120s
+                          echo "Applying configuration manifest to k3s cluster..."
+                          ./kubectl --kubeconfig="\$KUBECONFIG" apply -n "${DEPLOY_NAMESPACE}" -f generated_deployment.yaml
+
+                          echo "Monitoring deployment roll-out progress..."
+                          ./kubectl --kubeconfig="\$KUBECONFIG" rollout status deployment/${DEPLOY_NAME} -n "${DEPLOY_NAMESPACE}" --timeout=120s
+                        '
                         """
                     }
                 }
             }
-        }    }    
+        }
+    }    
     post {
         success {
             echo "✅ Pipeline succeeded. Image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
