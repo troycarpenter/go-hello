@@ -129,23 +129,25 @@ spec:
                 ]) {
                     container('golang') {
                         sh """
-                        # Install dependencies on the fly inside the golang alpine container
-                        apk add --no-cache curl gettext
-                        curl -LO https://k8s.io
-                        chmod +x kubectl && mv kubectl /usr/local/bin/
+                        # Install envsubst/gettext dependency 
+                        apk add --no-cache gettext
 
-                        # Substitute our pipeline env variables into the template and apply safely
-                        envsubst < deployment.yaml | kubectl --kubeconfig=\$KUBECONFIG apply -n ${DEPLOY_NAMESPACE} -f -
+                        # Download explicitly to a static local target filename to bypass URL parsing errors
+                        curl -L "https://k8s.io" -o ./kubectl
+                        
+                        # Make local binary executable
+                        chmod +x ./kubectl
 
-                        # Track deployment rollout status
-                        kubectl --kubeconfig=\$KUBECONFIG rollout status deployment/${DEPLOY_NAME} -n ${DEPLOY_NAMESPACE} --timeout=120s
+                        # Substitute variables and pipe to our local executable
+                        envsubst < deployment.yaml | ./kubectl --kubeconfig=\$KUBECONFIG apply -n ${DEPLOY_NAMESPACE} -f -
+
+                        # Track rollout status using the local binary
+                        ./kubectl --kubeconfig=\$KUBECONFIG rollout status deployment/${DEPLOY_NAME} -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
                 }
             }
         }
-    }
-
     post {
         success {
             echo "✅ Pipeline succeeded. Image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
