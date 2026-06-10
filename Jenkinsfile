@@ -27,11 +27,11 @@ spec:
     volumeMounts:
     - name: docker-storage
       mountPath: /var/lib/docker
-  # OPTIMIZATION: Added dedicated native kubectl container so you don't download it every run
   - name: kubectl
     image: bitnami/kubectl:1.29
     command: ['sleep', '99d']
-volumes:
+  # FIXED: Properly nested inside the 'spec' object to resolve structural schema failure
+  volumes:
   - name: docker-storage
     emptyDir: {}
 """
@@ -131,7 +131,6 @@ volumes:
                 withCredentials([
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
                 ]) {
-                    // SWITCHED: Swapped container to 'kubectl' which already has the binary installed
                     container('kubectl') {
                         sh """
                         # Substitute our pipeline env variables into the template and pipe straight to kubectl apply
