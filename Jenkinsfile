@@ -129,22 +129,27 @@ spec:
                 ]) {
                     container('golang') {
                         sh """
-                        # Install dependencies
+                        # 1. Install standard alpine package dependencies
                         apk add --no-cache gettext kubectl
 
-                        # Generate deployment manifest
-                        envsubst < deployment.yaml > generated_deployment.yaml
+                        # 2. FIXED: Explicitly pass the Jenkins variables into envsubst's environment context
+                        IMAGE_TAG="${IMAGE_TAG}" GIT_COMMIT_SHORT="${env.GIT_COMMIT_SHORT}" envsubst < deployment.yaml > generated_deployment.yaml
 
-                        # FIXED: Pointing directly to the hardcoded internal ClusterIP to bypass DNS issues
+                        # Debugging Check: Let's see exactly what image string got written to the file
+                        echo "--- VERIFYING GENERATED MANIFEST IMAGE ---"
+                        grep "image:" generated_deployment.yaml
+                        echo "------------------------------------------"
+
+                        # 3. Apply the layout using the kubeconfig credentials and static IP routing
                         kubectl apply --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
 
-                        # Track rollout status
+                        # 4. Watch and evaluate the pod orchestration rollout status
                         kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
                 }
             }
-        }
+        }        
     }    
     post {
         success {
