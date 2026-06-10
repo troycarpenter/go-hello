@@ -27,10 +27,6 @@ spec:
     volumeMounts:
     - name: docker-storage
       mountPath: /var/lib/docker
-  - name: kubectl
-    image: bitnami/kubectl:1.29
-    command: ['sleep', '99d']
-  # FIXED: Properly nested inside the 'spec' object to resolve structural schema failure
   volumes:
   - name: docker-storage
     emptyDir: {}
@@ -131,12 +127,17 @@ spec:
                 withCredentials([
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
                 ]) {
-                    container('kubectl') {
+                    container('golang') {
                         sh """
-                        # Substitute our pipeline env variables into the template and pipe straight to kubectl apply
+                        # Install dependencies on the fly inside the golang alpine container
+                        apk add --no-cache curl gettext
+                        curl -LO https://k8s.io
+                        chmod +x kubectl && mv kubectl /usr/local/bin/
+
+                        # Substitute our pipeline env variables into the template and apply safely
                         envsubst < deployment.yaml | kubectl --kubeconfig=\$KUBECONFIG apply -n ${DEPLOY_NAMESPACE} -f -
 
-                        # Track roll-out progress
+                        # Track deployment rollout status
                         kubectl --kubeconfig=\$KUBECONFIG rollout status deployment/${DEPLOY_NAME} -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
