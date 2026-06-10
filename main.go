@@ -6,12 +6,12 @@ import (
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello from k3s Go CI/CD pipeline - V4.  Should be the whole enchelada\n")
+	fmt.Fprintf(w, "Hello from k3s Go CI/CD pipeline - V5.  Trying with Terraform\n")
 }
 
 func main() {
 	http.HandleFunc("/", handler)
-	fmt.Println("Server running on :8080")
-	http.ListenAndServe(":8080", nil)
+	fmt.Println("Server running on :80")
+	http.ListenAndServe(":80", nil)
 }
 
