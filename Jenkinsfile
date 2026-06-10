@@ -27,31 +27,33 @@ spec:
     volumeMounts:
     - name: docker-storage
       mountPath: /var/lib/docker
-  volumes:
+  # OPTIMIZATION: Added dedicated native kubectl container so you don't download it every run
+  - name: kubectl
+    image: bitnami/kubectl:1.29
+    command: ['sleep', '99d']
+volumes:
   - name: docker-storage
     emptyDir: {}
 """
         }
     }
- 
+
     environment {
-        HARBOR_REGISTRY  = "harbor.carpenter.cx"
-        HARBOR_PROJECT   = "library"
-        APP_NAME         = "go-hello"
-        DEPLOY_NAMESPACE = "default"
-        DEPLOY_NAME      = "go-hello"
- 
-        IMAGE_TAG        = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${APP_NAME}"
+        HARBOR_REGISTRY   = "harbor.carpenter.cx"
+        HARBOR_PROJECT    = "library"
+        APP_NAME           = "go-hello"
+        DEPLOY_NAMESPACE   = "default"
+        DEPLOY_NAME        = "go-hello"
+        IMAGE_TAG          = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${APP_NAME}"
     }
- 
+
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timeout(time: 30, unit: 'MINUTES')
         disableConcurrentBuilds()
     }
- 
+
     stages {
- 
         stage('Checkout') {
             steps {
                 checkout scm
@@ -65,14 +67,14 @@ spec:
                 }
             }
         }
- 
+
         stage('Test') {
             steps {
                 container('golang') {
                     sh '''
-                        go env -w GOFLAGS=-mod=mod
-                        go vet ./...
-                        go test -v -coverprofile=coverage.out ./...
+                    go env -w GOFLAGS=-mod=mod
+                    go vet ./...
+                    go test -v -coverprofile=coverage.out ./...
                     '''
                 }
             }
@@ -82,7 +84,7 @@ spec:
                 }
             }
         }
- 
+
         stage('Build Docker Image') {
             steps {
                 container('docker') {
@@ -90,7 +92,7 @@ spec:
                 }
             }
         }
- 
+
         stage('Push to Harbor') {
             steps {
                 container('docker') {
@@ -103,7 +105,6 @@ spec:
                     ]) {
                         sh "echo '${HARBOR_PASS}' | docker login ${HARBOR_REGISTRY} -u '${HARBOR_USER}' --password-stdin"
                         sh "docker push ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
- 
                         script {
                             if (env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master']) {
                                 sh "docker tag ${IMAGE_TAG}:${GIT_COMMIT_SHORT} ${IMAGE_TAG}:latest"
@@ -121,39 +122,30 @@ spec:
                 }
             }
         }
- 
+
         stage('Deploy to k3s') {
             when {
-                expression {
-                     env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master'] 
-                }
+                expression { env.GIT_BRANCH_CLEAN in ['main', 'master', 'origin-main', 'origin-master'] }
             }
             steps {
                 withCredentials([
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
                 ]) {
-                    container('golang') {
+                    // SWITCHED: Swapped container to 'kubectl' which already has the binary installed
+                    container('kubectl') {
                         sh """
-                            apk add --no-cache curl
-                            curl -LO https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl
-                            chmod +x kubectl && mv kubectl /usr/local/bin/
- 
-                            kubectl --kubeconfig=\$KUBECONFIG \
-                                set image deployment/${DEPLOY_NAME} \
-                                ${APP_NAME}=${IMAGE_TAG}:${GIT_COMMIT_SHORT} \
-                                -n ${DEPLOY_NAMESPACE}
- 
-                            kubectl --kubeconfig=\$KUBECONFIG \
-                                rollout status deployment/${DEPLOY_NAME} \
-                                -n ${DEPLOY_NAMESPACE} \
-                                --timeout=120s
+                        # Substitute our pipeline env variables into the template and pipe straight to kubectl apply
+                        envsubst < deployment.yaml | kubectl --kubeconfig=\$KUBECONFIG apply -n ${DEPLOY_NAMESPACE} -f -
+
+                        # Track roll-out progress
+                        kubectl --kubeconfig=\$KUBECONFIG rollout status deployment/${DEPLOY_NAME} -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
                 }
             }
         }
     }
- 
+
     post {
         success {
             echo "✅ Pipeline succeeded. Image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
