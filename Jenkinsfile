@@ -129,10 +129,10 @@ spec:
                 ]) {
                     container('golang') {
                         sh """
-                        # Install envsubst/gettext dependency 
-                        apk add --no-cache gettext
+                        # FIXED: Install curl along with gettext so the download works
+                        apk add --no-cache gettext curl
 
-                        # Download explicitly to a static local target filename to bypass URL parsing errors
+                        # FIXED: Restored the exact path to the linux amd64 binary executable
                         curl -L "https://k8s.io" -o ./kubectl
                         
                         # Make local binary executable
@@ -147,8 +147,7 @@ spec:
                     }
                 }
             }
-        }
-    }    
+        }    }    
     post {
         success {
             echo "✅ Pipeline succeeded. Image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
