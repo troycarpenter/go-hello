@@ -148,6 +148,7 @@ spec:
                 }
             }
         }
+    }    
     post {
         success {
             echo "✅ Pipeline succeeded. Image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}"
