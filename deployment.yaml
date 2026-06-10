@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-hello
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: go-hello
+  template:
+    metadata:
+      labels:
+        app: go-hello
+    spec:
+      containers:
+      - name: go-hello
+        image: ${IMAGE_TAG}:${GIT_COMMIT_SHORT}
+        ports:
+        - containerPort: 8080
