@@ -38,7 +38,7 @@ spec:
         HARBOR_REGISTRY   = "harbor.carpenter.cx"
         HARBOR_PROJECT    = "library"
         APP_NAME           = "go-hello"
-        DEPLOY_NAMESPACE   = "default"
+        DEPLOY_NAMESPACE   = "go-hello"
         DEPLOY_NAME        = "go-hello"
         IMAGE_TAG          = "${HARBOR_REGISTRY}/${HARBOR_PROJECT}/${APP_NAME}"
     }
@@ -151,8 +151,7 @@ spec:
                         kubectl apply --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
 
                         # 4. Watch and evaluate the pod orchestration rollout status
-                        # kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
-                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n go-hello --timeout=120s
+                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
                         """
                     }
                 }
