@@ -129,6 +129,13 @@ spec:
                 ]) {
                     container('golang') {
                         sh """
+                        # DEBUG: Print the namespace being used
+                        echo "DEPLOY_NAMESPACE = ${DEPLOY_NAMESPACE}"
+                        echo "DEPLOY_NAME = ${DEPLOY_NAME}"
+                        echo "IMAGE_TAG = ${IMAGE_TAG}"
+                        echo "GIT_COMMIT_SHORT = ${env.GIT_COMMIT_SHORT}"
+
+                        
                         # 1. Install standard alpine package dependencies
                         apk add --no-cache gettext kubectl
 
@@ -144,7 +151,8 @@ spec:
                         kubectl apply --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -f generated_deployment.yaml -n ${DEPLOY_NAMESPACE}
 
                         # 4. Watch and evaluate the pod orchestration rollout status
-                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
+                        # kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n ${DEPLOY_NAMESPACE} --timeout=120s
+                        kubectl rollout status deployment/${DEPLOY_NAME} --kubeconfig=\$KUBECONFIG --server=https://10.43.0.1:443 -n go-hello --timeout=120s
                         """
                     }
                 }
