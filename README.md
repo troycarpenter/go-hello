@@ -6,22 +6,7 @@ The application is intentionally minimal. The purpose of this project is to test
 
 ## Pipeline Flow
 
-Source Change
-|
-v
-Jenkins Pipeline
-|
-v
-Go Build
-|
-v
-Docker Image Build
-|
-v
-Harbor Container Registry
-|
-v
-Kubernetes Deployment
+Source Change -> Jenkins Pipeline -> Go Build -> Docker Image Build -> Harbor Container Registry -> Kubernetes Deployment
 
 ## Components
 
